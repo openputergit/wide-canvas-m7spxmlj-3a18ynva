@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedScan AI - X-ray Fracture Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        .loading-spinner {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login/Register Section -->
+    <div id="auth-section" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-blue-600">MedScan AI</h1>
+                <p class="text-gray-600">X-ray Fracture Detection</p>
+            </div>
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 mb-2">Email</label>
+                    <input type="email" id="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Login</button>
+                <p class="text-center text-gray-600">Don't have an account? <a href="#" class="text-blue-600" onclick="toggleAuthMode()">Register</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application Section -->
+    <div id="app-section" class="hidden min-h-screen bg-gray-50">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-bold text-blue-600">MedScan AI</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="user-email" class="text-gray-600"></span>
+                        <button onclick="logout()" class="text-gray-600 hover:text-gray-800">
+                            <i class="bi bi-box-arrow-right text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Upload Section -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4">Upload X-ray Image</h2>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col w-full h-32 border-4 border-dashed hover:bg-gray-100 hover:border-blue-300 rounded-lg">
+                            <div class="flex flex-col items-center justify-center pt-7">
+                                <i class="bi bi-cloud-upload text-4xl text-gray-400"></i>
+                                <p class="text-sm text-gray-600">Drop your X-ray image here or click to upload</p>
+                            </div>
+                            <input type="file" id="file-upload" class="hidden" accept="image/*">
+                        </label>
+                    </div>
+                    <div id="preview-container" class="hidden">
+                        <img id="image-preview" class="max-h-96 mx-auto" src="" alt="Preview">
+                        <button onclick="processImage()" class="mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">
+                            Analyze Image
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="hidden bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-semibold mb-4">Analysis Results</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">Detected Fractures</h3>
+                        <div id="fracture-results" class="space-y-2">
+                            <!-- Results will be populated here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">Body Part Information</h3>
+                        <div id="body-part-info" class="space-y-2">
+                            <!-- Body part info will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button onclick="generateReport()" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">
+                        Generate Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="loading-spinner mx-auto mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        let isLogin = true;
+        const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        const appSlug = 'medscan-ai-123456';
+
+        function toggleAuthMode() {
+            isLogin = !isLogin;
+            const submitBtn = document.querySelector('#auth-form button');
+            const toggleLink = document.querySelector('#auth-form a');
+            submitBtn.textContent = isLogin ? 'Login' : 'Register';
+            toggleLink.textContent = isLogin ? 'Register' : 'Login';
+        }
+
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('app-section').classList.remove('hidden');
+            document.getElementById('user-email').textContent = email;
+        });
+
+        function logout() {
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('app-section').classList.add('hidden');
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        document.getElementById('file-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('image-preview').src = e.target.result;
+                    document.getElementById('preview-container').classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function processImage() {
+            const spinner = document.getElementById('loading-spinner');
+            spinner.style.display = 'block';
+            
+            try {
+                // Simulate AI processing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                document.getElementById('results-section').classList.remove('hidden');
+                document.getElementById('fracture-results').innerHTML = `
+                    <div class="p-4 bg-red-100 rounded-lg">
+                        <p class="font-medium text-red-800">Fracture Detected</p>
+                        <p class="text-sm text-red-600">Probability: 87%</p>
+                        <p class="text-sm text-red-600">Location: Distal Radius</p>
+                    </div>
+                `;
+                
+                document.getElementById('body-part-info').innerHTML = `
+                    <div class="p-4 bg-blue-100 rounded-lg">
+                        <p class="font-medium text-blue-800">Body Part: Wrist</p>
+                        <p class="text-sm text-blue-600">Orientation: Anterior-Posterior</p>
+                        <p class="text-sm text-blue-600">Image Quality: Good</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error processing image:', error);
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        function generateReport() {
+            // Simulate PDF generation
+            const link = document.createElement('a');
+            link.href = '#';
+            link.download = 'MedScan_AI_Report.pdf';
+            link.click();
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
